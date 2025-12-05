@@ -1,0 +1,208 @@
+{% extends 'api/base.html' %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+    <div style="background: white; padding: 10px 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+        <label for="plot-selector" style="font-weight: bold; margin-right: 10px;">📍 Select Field Plot:</label>
+        <select id="plot-selector" onchange="changePlot()" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc;">
+            <option value="" disabled selected>Loading plots...</option>
+        </select>
+    </div>
+    
+    <span id="status-indicator" style="padding: 8px 15px; border-radius: 20px; font-weight: bold; font-size: 0.9em; background: #eee; color: #666;">
+        Connecting...
+    </span>
+</div>
+
+<div style="display: flex; gap: 20px;">
+    <div class="card" style="flex: 2;">
+        <h2 id="chart-title">📊 Live Sensor Data</h2>
+        <canvas id="sensorChart" height="150"></canvas>
+    </div>
+
+    <div class="card" style="flex: 1; max-height: 80vh; overflow-y: auto;">
+        <h2>🤖 AI Recommendations</h2>
+        <div id="alerts-list">
+            <p style="color: #666; font-style: italic;">Waiting for data...</p>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 1. Global Variables
+    const token = localStorage.getItem('accessToken');
+    if (!token) window.location.href = '/api/login/';
+    
+    let currentPlotId = null; 
+
+    // 2. Initialize Chart
+    const ctx = document.getElementById('sensorChart').getContext('2d');
+    const chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [
+                { label: 'Temperature (°C)', borderColor: '#e74c3c', data: [], tension: 0.4 },
+                { label: 'Humidity (%)', borderColor: '#3498db', data: [], tension: 0.4 },
+                { label: 'Moisture (%)', borderColor: '#2ecc71', data: [], tension: 0.4 }
+            ]
+        },
+        options: { responsive: true, animation: false }
+    });
+
+    // 3. Load Available Plots (Run once on load)
+    async function loadPlots() {
+        try {
+            const response = await fetch('/api/plots/', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const plots = await response.json();
+            
+            const selector = document.getElementById('plot-selector');
+            selector.innerHTML = ''; 
+
+            if (plots.length === 0) {
+                selector.innerHTML = '<option>No Plots Found</option>';
+                return;
+            }
+
+            // Populate Dropdown
+            plots.forEach((plot, index) => {
+                const option = document.createElement('option');
+                option.value = plot.id;
+                option.text = `${plot.plot_name} (${plot.crop_variety})`;
+                selector.appendChild(option);
+                
+                // Default to the first plot found
+                if (index === 0) currentPlotId = plot.id;
+            });
+
+            // Start the dashboard loop
+            updateDashboard();
+            setInterval(updateDashboard, 3000);
+
+        } catch (e) {
+            console.error("Error loading plots:", e);
+        }
+    }
+
+    // 4. Handle Dropdown Change
+    function changePlot() {
+        const selector = document.getElementById('plot-selector');
+        currentPlotId = selector.value;
+        updateDashboard(); // Refresh immediately
+    }
+
+    // 5. Main Update Function
+    async function updateDashboard() {
+        if (!currentPlotId) return;
+
+        try {
+            // --- PART A: SENSOR DATA ---
+            const resSensors = await fetch(`/api/sensor-readings/?plot=${currentPlotId}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (resSensors.status === 401) window.location.href = '/api/login/';
+            
+            const rawData = await resSensors.json();
+
+            // Filter by type
+            const allTemps = rawData.filter(r => r.sensor_type === 'temperature');
+            const allHums = rawData.filter(r => r.sensor_type === 'humidity');
+            const allMoists = rawData.filter(r => r.sensor_type === 'moisture');
+
+            // Slice to equal length
+            const limit = 15;
+            
+            // CHART DIRECTION: Removed .reverse() so Newest is on Left, Oldest on Right
+            const process = (arr) => arr.slice(0, limit); 
+
+            const finalTemps = process(allTemps);
+            const finalHums = process(allHums);
+            const finalMoists = process(allMoists);
+
+            // Labels (Time)
+            const timeSource = finalTemps.length > 0 ? finalTemps : finalMoists;
+            chart.data.labels = timeSource.map(r => new Date(r.timestamp).toLocaleTimeString());
+            
+            // Data
+            chart.data.datasets[0].data = finalTemps.map(r => r.value);
+            chart.data.datasets[1].data = finalHums.map(r => r.value);
+            chart.data.datasets[2].data = finalMoists.map(r => r.value);
+            chart.update();
+
+            // --- PART B: ALERTS & RECOMMENDATIONS ---
+            const resRecs = await fetch(`/api/recommendations/?plot=${currentPlotId}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const recs = await resRecs.json();
+
+            const list = document.getElementById('alerts-list');
+            list.innerHTML = ''; 
+            
+            // Status Indicator
+            if (recs.length === 0) {
+                document.getElementById('status-indicator').innerText = '🟢 System Normal';
+                document.getElementById('status-indicator').style.backgroundColor = '#d4edda';
+                document.getElementById('status-indicator').style.color = '#155724';
+                list.innerHTML = '<p style="color:#666; padding:10px;">No active anomalies for this plot.</p>';
+            } else {
+                document.getElementById('status-indicator').innerText = '🔴 Anomalies Detected';
+                document.getElementById('status-indicator').style.backgroundColor = '#f8d7da';
+                document.getElementById('status-indicator').style.color = '#721c24';
+            }
+
+            // Build Alert Cards
+            recs.forEach(rec => {
+                // 1. Determine Color based on Confidence Score
+                let barColor = '#95a5a6'; // Gray
+                let confPercent = (rec.confidence * 100).toFixed(0);
+                
+                if (rec.confidence >= 0.90) {
+                    barColor = '#27ae60'; // Green
+                } else if (rec.confidence >= 0.60) {
+                    barColor = '#f39c12'; // Orange
+                } else {
+                    barColor = '#c0392b'; // Red
+                }
+
+                // 2. Format Time
+                const dateObj = new Date(rec.created_at);
+                const timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                const dateStr = dateObj.toLocaleDateString();
+
+                const div = document.createElement('div');
+                div.className = 'alert';
+                div.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 5px;">
+                        <h4 style="margin:0;">⚠️ Action Required</h4>
+                        <span style="font-size: 0.75em; color: #555; background: rgba(0,0,0,0.05); padding: 2px 6px; border-radius: 4px;">
+                            ${dateStr} <strong>${timeStr}</strong>
+                        </span>
+                    </div>
+                    
+                    <p style="margin: 5px 0;"><strong>Advice:</strong> ${rec.recommended_action}</p>
+                    <p style="margin: 5px 0; font-style: italic; font-size: 0.9em; color: #444;">"${rec.explanation_text}"</p>
+                    
+                    <div style="margin-top: 8px;">
+                        <div style="display: flex; justify-content: space-between; font-size: 0.75em; margin-bottom: 2px; color: #666;">
+                            <span>AI Confidence</span>
+                            <strong>${confPercent}%</strong>
+                        </div>
+                        <div style="background: #e0e0e0; border-radius: 4px; height: 6px; width: 100%;">
+                            <div style="background: ${barColor}; height: 6px; border-radius: 4px; width: ${confPercent}%;"></div>
+                        </div>
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+
+        } catch (e) {
+            console.error("Dashboard error:", e);
+        }
+    }
+
+    // Start the app
+    loadPlots();
+</script>
+{% endblock %}

@@ -8,6 +8,12 @@ django = "*"
 djangorestframework = "*"
 psycopg2-binary = "*"
 django-cors-headers = "*"
+djangorestframework-simplejwt = "*"
+requests = "*"
+scikit-learn = "*"
+pandas = "*"
+numpy = "*"
+faker = "*"
 
 [dev-packages]
 

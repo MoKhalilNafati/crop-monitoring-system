@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🌱 Smart Crop Monitor</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* Global Styles */
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f2f5; margin: 0; padding: 0; }
+        
+        /* Navbar */
+        .navbar { background-color: #2e7d32; color: white; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .navbar h1 { margin: 0; font-size: 1.5rem; }
+        .navbar a { color: white; text-decoration: none; margin-left: 20px; font-weight: bold; }
+        .navbar a:hover { text-decoration: underline; }
+
+        /* Container */
+        .container { max-width: 1200px; margin: 2rem auto; padding: 0 1rem; }
+        
+        /* Cards */
+        .card { background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); padding: 20px; margin-bottom: 20px; }
+        
+        /* Alerts */
+        .alert { padding: 15px; border-radius: 6px; margin-bottom: 10px; border-left: 5px solid #c62828; background-color: #ffebee; }
+        .alert h4 { margin: 0 0 5px 0; color: #c62828; }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <h1>🌱 Crop Monitor</h1>
+        <div>
+            <a href="/api/dashboard/">Dashboard</a>
+            <a href="#" onclick="logout()">Logout</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        {% block content %}
+        {% endblock %}
+    </div>
+
+    <script>
+        function logout() {
+            localStorage.removeItem('accessToken');
+            window.location.href = '/api/login/';
+        }
+    </script>
+</body>
+</html>
