@@ -60,7 +60,7 @@ The entire system (Web, Database, ML) is containerized.
 2.  **Access the Dashboard:**
     * Open Browser: `http://localhost:8000/api/dashboard/`
     * **Username:** `admin`
-    * **Password:** `admin123`
+    * **Password:** `admin`
 
 3.  **Start the Sensor Simulation:**
     Open a new terminal and run the simulator inside the container:
