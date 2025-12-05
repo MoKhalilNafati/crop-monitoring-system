@@ -55,7 +55,7 @@ The entire system (Web, Database, ML) is containerized.
     ```bash
     docker-compose up --build
     ```
-    *Wait until you see "Starting development server at http://0.0.0.0:8000/"*
+    *Wait until you see "Starting development server at http://localhost:8000/"*
 
 2.  **Access the Dashboard:**
     * Open Browser: `http://localhost:8000/api/dashboard/`
