@@ -3,7 +3,7 @@
 ## Project Overview
 This project is an end-to-end agricultural monitoring platform designed to ingest simulated IoT sensor data, detect environmental anomalies using Machine Learning (Isolation Forest), and provide actionable recommendations via an AI Agent.
 
-Credit to Mr.[ChaoukiBayoudhi](https://github.com/ChaoukiBayoudhi) for the project idea.
+Credit to [Mr.ChaoukiBayoudhi](https://github.com/ChaoukiBayoudhi) for the project idea.
 
 **Key Features:**
 * **Real-time Simulation:** Generates multi-plot sensor data (Temperature, Humidity, Moisture) with diurnal cycles.
